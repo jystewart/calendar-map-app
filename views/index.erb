@@ -22,6 +22,13 @@
                 Your calendar events with locations are displayed on the map below.
             </p>
         </div>
+
+        <div class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Today's Events</h3>
+            <div id="events-list" class="hidden space-y-3">
+                <!-- Events will be populated by JavaScript -->
+            </div>
+        </div>
         
         <div id="loading" class="flex items-center justify-center h-96">
             <div class="text-lg">Loading events...</div>
@@ -35,8 +42,11 @@
             <div class="text-gray-600">No events with locations found for today</div>
         </div>
         
-        <div id="map-container" class="hidden h-96 w-full rounded-lg overflow-hidden border">
-            <div id="map" class="h-full w-full"></div>
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Map</h3>
+            <div id="map-container" class="hidden h-96 w-full rounded-lg overflow-hidden border">
+                <div id="map" class="h-full w-full"></div>
+            </div>
         </div>
     </main>
 </div>

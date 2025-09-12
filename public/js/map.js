@@ -18,14 +18,16 @@ async function initializeMap() {
             return;
         }
         
-        const geocodedEvents = await geocodeEvents(events);
+        const result = await geocodeEvents(events);
+        const { allEvents, geocodedEvents } = result;
         
-        if (geocodedEvents.length === 0) {
-            showNoEvents();
-            return;
+        displayEventsList(allEvents);
+        
+        if (geocodedEvents.length > 0) {
+            createMap(geocodedEvents);
+        } else {
+            showMapMessage('No events could be mapped');
         }
-        
-        createMap(geocodedEvents);
         
     } catch (error) {
         console.error('Error initializing map:', error);
@@ -34,33 +36,45 @@ async function initializeMap() {
 }
 
 async function geocodeEvents(events) {
+    const allEvents = [];
     const geocodedEvents = [];
     
     for (const event of events) {
+        const eventWithStatus = { ...event, isGeocoded: false };
+        
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             const response = await fetch('/api/geocode', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
                 },
                 body: JSON.stringify({ address: event.location })
             });
             
             if (response.ok) {
                 const locationData = await response.json();
-                geocodedEvents.push({
-                    ...event,
+                const geocodedEvent = {
+                    ...eventWithStatus,
                     lat: locationData.lat,
                     lng: locationData.lng,
-                    formattedAddress: locationData.formattedAddress
-                });
+                    formattedAddress: locationData.formattedAddress,
+                    isGeocoded: true
+                };
+                
+                allEvents.push(geocodedEvent);
+                geocodedEvents.push(geocodedEvent);
+            } else {
+                allEvents.push(eventWithStatus);
             }
         } catch (error) {
             console.error(`Failed to geocode ${event.location}:`, error);
+            allEvents.push(eventWithStatus);
         }
     }
     
-    return geocodedEvents;
+    return { allEvents, geocodedEvents };
 }
 
 function createMap(events) {
@@ -132,6 +146,40 @@ function showError(message) {
     document.getElementById('no-events').classList.add('hidden');
     document.getElementById('error').classList.remove('hidden');
     document.getElementById('error').innerHTML = `<div class="text-red-600">Error: ${message}</div>`;
+}
+
+function displayEventsList(events) {
+    const eventsListContainer = document.getElementById('events-list');
+    if (!eventsListContainer) return;
+    
+    const eventsHtml = events.map(event => `
+        <div class="event-item p-4 border border-gray-200 rounded-lg mb-3">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <h3 class="font-semibold text-lg">${event.summary}</h3>
+                    <p class="text-sm text-gray-600 mb-1">${formatTime(event)}</p>
+                    <div class="flex items-center">
+                        <span class="text-sm text-gray-700">${event.location}</span>
+                        ${event.isGeocoded 
+                            ? '<span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">📍 On Map</span>' 
+                            : '<span class="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">📍 Location Only</span>'
+                        }
+                    </div>
+                    ${event.description ? `<p class="text-sm text-gray-600 mt-2">${event.description}</p>` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    eventsListContainer.innerHTML = eventsHtml;
+    eventsListContainer.classList.remove('hidden');
+}
+
+function showMapMessage(message) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('error').classList.add('hidden');
+    document.getElementById('map-container').innerHTML = `<div class="flex items-center justify-center h-64 text-gray-500">${message}</div>`;
+    document.getElementById('map-container').classList.remove('hidden');
 }
 
 function showNoEvents() {

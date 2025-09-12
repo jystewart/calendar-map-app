@@ -1,37 +1,58 @@
 {
-  "name": "Calendar Map App",
-  "image": "mcr.microsoft.com/devcontainers/ruby:1-3.1-bullseye",
+  "name": "Ruby Sinatra Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/ruby:3.4-bookworm",
   
   "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "nodeGypDependencies": true,
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    }
   },
 
   "customizations": {
     "vscode": {
       "extensions": [
-        "rebornix.ruby",
-        "wingrunr21.vscode-ruby",
-        "kaiwood.endwise",
-        "ms-vscode.vscode-json"
+        "Shopify.ruby-lsp",
+        "ms-vscode.vscode-json",
+        "eamodio.gitlens"
       ],
       "settings": {
-        "editor.formatOnSave": true,
-        "ruby.intellisense": "rubyLanguageServer",
-        "ruby.format": "rubocop"
+        "ruby.lsp.enabledFeatures": {
+          "codeActions": true,
+          "diagnostics": true,
+          "documentHighlights": true,
+          "documentSymbols": true,
+          "foldingRanges": true,
+          "formatting": true,
+          "hover": true,
+          "completion": true,
+          "definition": true
+        },
+        "files.associations": {
+          "*.rb": "ruby",
+          "Gemfile": "ruby",
+          "Rakefile": "ruby",
+          "*.ru": "ruby"
+        }
       }
     }
   },
 
-  "forwardPorts": [4567],
+  "postCreateCommand": "gem install bundler && npm install -g @anthropic-ai/claude-code",
+
+  "forwardPorts": [4567, 9292],
   "portsAttributes": {
     "4567": {
-      "label": "Sinatra App",
-      "onAutoForward": "notify"
+      "label": "Sinatra App"
+    },
+    "9292": {
+      "label": "Rack App"
     }
-  },
-
-  "postCreateCommand": "bundle install",
-
-  "remoteUser": "vscode"
+  }
 }

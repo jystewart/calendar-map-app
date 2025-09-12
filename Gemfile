@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-ruby '3.1.6'
+ruby '3.4.5'
 
 # Web framework
 gem 'sinatra', '~> 3.0'
@@ -10,7 +10,6 @@ gem 'puma', '~> 6.0'
 # Authentication
 gem 'omniauth', '~> 2.1'
 gem 'omniauth-google-oauth2', '~> 1.1'
-gem 'omniauth-rails_csrf_protection', '~> 1.0'
 
 # Google APIs
 gem 'google-api-client', '~> 0.53'

@@ -2,9 +2,9 @@ require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'omniauth'
 require 'omniauth-google-oauth2'
-require 'omniauth-rails_csrf_protection'
 require 'dotenv/load'
 require 'json'
+require 'securerandom'
 require_relative 'lib/google_calendar'
 require_relative 'lib/geocoding'
 
@@ -13,13 +13,17 @@ use Rack::Session::Cookie,
   key: 'calendar_map_session',
   secret: ENV['SESSION_SECRET'] || 'your_secret_key_change_in_production'
 
+# Configure CSRF protection
+use Rack::Protection::AuthenticityToken, token: proc { |req| req.env['HTTP_X_CSRF_TOKEN'] || req.params['authenticity_token'] }
+
 # Configure Omniauth
+OmniAuth.config.allowed_request_methods = %i[post]
 use OmniAuth::Builder do
   provider :google_oauth2,
     ENV['GOOGLE_CLIENT_ID'],
     ENV['GOOGLE_CLIENT_SECRET'],
     {
-      scope: 'email,profile,https://www.googleapis.com/auth/calendar.readonly',
+      scope: 'email profile https://www.googleapis.com/auth/calendar.readonly',
       access_type: 'offline'
     }
 end
@@ -36,6 +40,10 @@ helpers do
 
   def require_authentication!
     redirect '/auth/google_oauth2' unless authenticated?
+  end
+  
+  def csrf_token
+    Rack::Protection::AuthenticityToken.token(session)
   end
 end
 
@@ -85,6 +93,8 @@ get '/api/calendar/events' do
     events = calendar_service.today_events_with_location
     { events: events }.to_json
   rescue => e
+    puts "Calendar API Error: #{e.class} - #{e.message}"
+    puts e.backtrace.join("\n") if e.backtrace
     status 500
     { error: 'Failed to fetch calendar events', message: e.message }.to_json
   end
