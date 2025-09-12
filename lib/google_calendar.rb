@@ -10,9 +10,12 @@ class GoogleCalendar
   end
 
   def today_events_with_location
-    today = Date.today
-    time_min = Time.new(today.year, today.month, today.day, 0, 0, 0).iso8601
-    time_max = Time.new(today.year, today.month, today.day, 23, 59, 59).iso8601
+    events_for_date_with_location(Date.today)
+  end
+
+  def events_for_date_with_location(date)
+    time_min = Time.new(date.year, date.month, date.day, 0, 0, 0).iso8601
+    time_max = Time.new(date.year, date.month, date.day, 23, 59, 59).iso8601
 
     begin
       result = @service.list_events(

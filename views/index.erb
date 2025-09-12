@@ -15,11 +15,25 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="mb-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">
-                Events for <span id="today-date"></span>
-            </h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    Events for <span id="selected-date-display"></span>
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <button id="prev-day" class="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors font-medium" title="Previous Day">
+                        ←
+                    </button>
+                    <input type="date" id="date-picker" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <button id="next-day" class="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors font-medium" title="Next Day">
+                        →
+                    </button>
+                    <button id="today-btn" class="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+                        Today
+                    </button>
+                </div>
+            </div>
             <p class="text-gray-600">
-                Your calendar events with locations are displayed on the map below.
+                Your calendar events with locations are displayed below.
             </p>
         </div>
 
@@ -53,16 +67,17 @@
 
 <script>
 window.addEventListener('DOMContentLoaded', function() {
-    // Set today's date
-    const today = new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    document.getElementById('today-date').textContent = today;
-    
-    // Initialize map
+    // Setup date controls and initialize
+    setupDateControls();
     initializeMap();
+    
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.date) {
+            currentDate = new Date(event.state.date + 'T00:00:00');
+            updateDateDisplay(currentDate);
+            loadEventsForDate(currentDate);
+        }
+    });
 });
 </script>

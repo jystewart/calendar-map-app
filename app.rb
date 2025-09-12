@@ -89,8 +89,12 @@ get '/api/calendar/events' do
   content_type :json
   
   begin
+    # Get date from query parameter or default to today
+    date_param = params['date']
+    target_date = date_param ? Date.parse(date_param) : Date.today
+    
     calendar_service = GoogleCalendar.new(current_user[:access_token])
-    events = calendar_service.today_events_with_location
+    events = calendar_service.events_for_date_with_location(target_date)
     { events: events }.to_json
   rescue => e
     puts "Calendar API Error: #{e.class} - #{e.message}"

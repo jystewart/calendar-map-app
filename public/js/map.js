@@ -1,9 +1,44 @@
 let map;
 let markers = [];
+let currentDate = new Date();
 
-async function initializeMap() {
+function getDateFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+    
+    if (dateParam) {
+        try {
+            const date = new Date(dateParam + 'T00:00:00');
+            // Check if date is valid
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+        } catch (e) {
+            console.warn('Invalid date parameter:', dateParam);
+        }
+    }
+    
+    return new Date(); // Default to today
+}
+
+function updateUrl(date, pushState = true) {
+    const dateStr = date.toISOString().split('T')[0];
+    const url = new URL(window.location);
+    url.searchParams.set('date', dateStr);
+    
+    if (pushState) {
+        window.history.pushState({ date: dateStr }, '', url);
+    } else {
+        window.history.replaceState({ date: dateStr }, '', url);
+    }
+}
+
+async function loadEventsForDate(date) {
     try {
-        const response = await fetch('/api/calendar/events');
+        showLoading();
+        
+        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const response = await fetch(`/api/calendar/events?date=${dateStr}`);
         
         if (!response.ok) {
             showError('Failed to fetch calendar events');
@@ -30,9 +65,13 @@ async function initializeMap() {
         }
         
     } catch (error) {
-        console.error('Error initializing map:', error);
-        showError('An error occurred while loading the map');
+        console.error('Error loading events:', error);
+        showError('An error occurred while loading events');
     }
+}
+
+async function initializeMap() {
+    loadEventsForDate(currentDate);
 }
 
 async function geocodeEvents(events) {
@@ -182,9 +221,78 @@ function showMapMessage(message) {
     document.getElementById('map-container').classList.remove('hidden');
 }
 
+function showLoading() {
+    document.getElementById('events-list').classList.add('hidden');
+    document.getElementById('error').classList.add('hidden');
+    document.getElementById('no-events').classList.add('hidden');
+    document.getElementById('map-container').classList.add('hidden');
+    document.getElementById('loading').classList.remove('hidden');
+}
+
 function showNoEvents() {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('error').classList.add('hidden');
+    document.getElementById('events-list').classList.add('hidden');
     document.getElementById('map-container').classList.add('hidden');
     document.getElementById('no-events').classList.remove('hidden');
+}
+
+function updateDateDisplay(date) {
+    const dateStr = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    document.getElementById('selected-date-display').textContent = dateStr;
+    document.getElementById('date-picker').value = date.toISOString().split('T')[0];
+}
+
+function changeDate(days) {
+    currentDate.setDate(currentDate.getDate() + days);
+    updateDateDisplay(currentDate);
+    updateUrl(currentDate);
+    loadEventsForDate(currentDate);
+}
+
+function goToToday() {
+    currentDate = new Date();
+    updateDateDisplay(currentDate);
+    updateUrl(currentDate);
+    loadEventsForDate(currentDate);
+}
+
+function setDate(date) {
+    currentDate = new Date(date);
+    updateDateDisplay(currentDate);
+    updateUrl(currentDate);
+    loadEventsForDate(currentDate);
+}
+
+function setupDateControls() {
+    // Initialize from URL or default to today
+    currentDate = getDateFromUrl();
+    updateDateDisplay(currentDate);
+    // Set initial URL state without pushing to history
+    updateUrl(currentDate, false);
+    
+    // Previous day button
+    document.getElementById('prev-day').addEventListener('click', () => {
+        changeDate(-1);
+    });
+    
+    // Next day button
+    document.getElementById('next-day').addEventListener('click', () => {
+        changeDate(1);
+    });
+    
+    // Today button
+    document.getElementById('today-btn').addEventListener('click', () => {
+        goToToday();
+    });
+    
+    // Date picker change
+    document.getElementById('date-picker').addEventListener('change', (e) => {
+        setDate(e.target.value + 'T00:00:00');
+    });
 }
