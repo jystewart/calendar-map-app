@@ -8,6 +8,9 @@ class GeocodingService
     @api_key = ENV['GOOGLE_MAPS_API_KEY']
     raise 'GOOGLE_MAPS_API_KEY environment variable is required' unless @api_key
     
+    # In-memory cache for geocoding results
+    @geocode_cache = {}
+    
     # Pre-geocoded location mappings
     @location_mappings = {
       # PD-2- locations are at High Holborn
@@ -23,9 +26,22 @@ class GeocodingService
   def geocode(address)
     return nil if address.nil? || address.empty?
 
-    # Check for mapped locations first
+    # Normalize address for cache key (trim whitespace, convert to lowercase)
+    cache_key = address.strip.downcase
+    
+    # Check cache first
+    if @geocode_cache.key?(cache_key)
+      puts "Cache hit for '#{address}'"
+      return @geocode_cache[cache_key]&.dup
+    end
+
+    # Check for mapped locations
     mapped_result = check_location_mappings(address)
-    return mapped_result if mapped_result
+    if mapped_result
+      # Cache the mapped result too
+      @geocode_cache[cache_key] = mapped_result.dup
+      return mapped_result
+    end
 
     response = self.class.get('/geocode/json', {
       query: {
@@ -38,13 +54,21 @@ class GeocodingService
       result = response['results'].first
       location = result['geometry']['location']
       
-      {
+      geocode_result = {
         lat: location['lat'],
         lng: location['lng'],
         formattedAddress: result['formatted_address']
       }
+      
+      # Cache the successful result
+      @geocode_cache[cache_key] = geocode_result.dup
+      puts "Cached geocoding result for '#{address}'"
+      
+      geocode_result
     else
       puts "Geocoding failed for address '#{address}': #{response['status']}"
+      # Cache failed results as nil to avoid repeated API calls
+      @geocode_cache[cache_key] = nil
       nil
     end
   rescue => e
