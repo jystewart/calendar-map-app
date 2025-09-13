@@ -8,10 +8,18 @@ function getDateFromUrl() {
     
     if (dateParam) {
         try {
-            const date = new Date(dateParam + 'T00:00:00');
-            // Check if date is valid
-            if (!isNaN(date.getTime())) {
-                return date;
+            // Parse YYYY-MM-DD format directly to avoid timezone issues
+            const parts = dateParam.split('-');
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+                const day = parseInt(parts[2], 10);
+                const date = new Date(year, month, day);
+                
+                // Check if date is valid
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
             }
         } catch (e) {
             console.warn('Invalid date parameter:', dateParam);
@@ -22,7 +30,7 @@ function getDateFromUrl() {
 }
 
 function updateUrl(date, pushState = true) {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateForInput(date);
     const url = new URL(window.location);
     url.searchParams.set('date', dateStr);
     
@@ -37,15 +45,24 @@ async function loadEventsForDate(date) {
     try {
         showLoading();
         
-        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const dateStr = formatDateForInput(date);
         const response = await fetch(`/api/calendar/events?date=${dateStr}`);
         
         if (!response.ok) {
-            showError('Failed to fetch calendar events');
+            console.log('Response not OK:', response.status, response.statusText);
+            
+            if (response.status === 401) {
+                // Token expired, redirect to logout which will clear session and redirect to login
+                window.location.href = '/logout';
+                return;
+            }
+            
+            showError(`Failed to fetch calendar events (${response.status})`);
             return;
         }
         
         const data = await response.json();
+        console.log('Received data:', data);
         const events = data.events || [];
         
         if (events.length === 0) {
@@ -55,6 +72,9 @@ async function loadEventsForDate(date) {
         
         const result = await geocodeEvents(events);
         const { allEvents, geocodedEvents } = result;
+        
+        // Hide all states and show content
+        hideAllStates();
         
         displayEventsList(allEvents);
         
@@ -117,9 +137,17 @@ async function geocodeEvents(events) {
 }
 
 function createMap(events) {
+    // Show map container first
+    document.getElementById('map-container').classList.remove('hidden');
+    
     // Calculate center point of all events
     const centerLat = events.reduce((sum, event) => sum + event.lat, 0) / events.length;
     const centerLng = events.reduce((sum, event) => sum + event.lng, 0) / events.length;
+    
+    // Clear any existing map
+    if (map) {
+        map.remove();
+    }
     
     // Initialize map
     map = L.map('map').setView([centerLat, centerLng], 12);
@@ -176,13 +204,11 @@ function showMap() {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('error').classList.add('hidden');
     document.getElementById('no-events').classList.add('hidden');
-    document.getElementById('map-container').classList.remove('hidden');
+    // map-container visibility is handled in createMap()
 }
 
 function showError(message) {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('map-container').classList.add('hidden');
-    document.getElementById('no-events').classList.add('hidden');
+    hideAllStates();
     document.getElementById('error').classList.remove('hidden');
     document.getElementById('error').innerHTML = `<div class="text-red-600">Error: ${message}</div>`;
 }
@@ -204,7 +230,6 @@ function displayEventsList(events) {
                             : '<span class="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">📍 Location Only</span>'
                         }
                     </div>
-                    ${event.description ? `<p class="text-sm text-gray-600 mt-2">${event.description}</p>` : ''}
                 </div>
             </div>
         </div>
@@ -221,20 +246,44 @@ function showMapMessage(message) {
     document.getElementById('map-container').classList.remove('hidden');
 }
 
+function hideAllStates() {
+    console.log('hideAllStates called');
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const noEvents = document.getElementById('no-events');
+    const eventsList = document.getElementById('events-list');
+    const mapContainer = document.getElementById('map-container');
+    
+    console.log('Elements found:', {
+        loading: !!loading,
+        error: !!error, 
+        noEvents: !!noEvents,
+        eventsList: !!eventsList,
+        mapContainer: !!mapContainer
+    });
+    
+    if (loading) loading.classList.add('hidden');
+    if (error) error.classList.add('hidden');
+    if (noEvents) noEvents.classList.add('hidden');
+    if (eventsList) eventsList.classList.add('hidden');
+    if (mapContainer) mapContainer.classList.add('hidden');
+}
+
 function showLoading() {
-    document.getElementById('events-list').classList.add('hidden');
-    document.getElementById('error').classList.add('hidden');
-    document.getElementById('no-events').classList.add('hidden');
-    document.getElementById('map-container').classList.add('hidden');
+    hideAllStates();
     document.getElementById('loading').classList.remove('hidden');
 }
 
 function showNoEvents() {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('error').classList.add('hidden');
-    document.getElementById('events-list').classList.add('hidden');
-    document.getElementById('map-container').classList.add('hidden');
+    hideAllStates();
     document.getElementById('no-events').classList.remove('hidden');
+}
+
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function updateDateDisplay(date) {
@@ -245,7 +294,7 @@ function updateDateDisplay(date) {
         day: 'numeric'
     });
     document.getElementById('selected-date-display').textContent = dateStr;
-    document.getElementById('date-picker').value = date.toISOString().split('T')[0];
+    document.getElementById('date-picker').value = formatDateForInput(date);
 }
 
 function changeDate(days) {
@@ -293,6 +342,10 @@ function setupDateControls() {
     
     // Date picker change
     document.getElementById('date-picker').addEventListener('change', (e) => {
-        setDate(e.target.value + 'T00:00:00');
+        const parts = e.target.value.split('-');
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        setDate(new Date(year, month, day));
     });
 }
