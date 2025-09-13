@@ -44,15 +44,15 @@
             </div>
         </div>
         
-        <div id="loading" class="flex items-center justify-center h-96">
+        <div id="loading" class="flex items-center justify-center">
             <div class="text-lg">Loading events...</div>
         </div>
         
-        <div id="error" class="hidden flex items-center justify-center h-96">
+        <div id="error" class="hidden">
             <div class="text-red-600">Error loading events</div>
         </div>
         
-        <div id="no-events" class="hidden flex items-center justify-center h-96">
+        <div id="no-events" class="hidden">
             <div class="text-gray-600">No events with locations found for today</div>
         </div>
         
@@ -74,7 +74,11 @@ window.addEventListener('DOMContentLoaded', function() {
     // Handle browser back/forward navigation
     window.addEventListener('popstate', function(event) {
         if (event.state && event.state.date) {
-            currentDate = new Date(event.state.date + 'T00:00:00');
+            const parts = event.state.date.split('-');
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            currentDate = new Date(year, month, day);
             updateDateDisplay(currentDate);
             loadEventsForDate(currentDate);
         }
