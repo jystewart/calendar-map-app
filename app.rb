@@ -96,6 +96,10 @@ get '/api/calendar/events' do
     calendar_service = GoogleCalendar.new(current_user[:access_token])
     events = calendar_service.events_for_date_with_location(target_date)
     { events: events }.to_json
+  rescue Google::Apis::AuthorizationError => e
+    puts "OAuth token expired: #{e.message}"
+    status 401
+    { error: 'token_expired', message: 'Authentication token has expired. Please sign in again.' }.to_json
   rescue => e
     puts "Calendar API Error: #{e.class} - #{e.message}"
     puts e.backtrace.join("\n") if e.backtrace
